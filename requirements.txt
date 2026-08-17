@@ -1,0 +1,8 @@
+pyspark==3.5.0
+delta-spark==3.1.0
+dbt-core>=1.7.0
+dbt-duckdb>=1.7.0
+pytest>=7.4.0
+great_expectations>=0.18.0
+black>=23.0.0
+sqlfluff>=2.3.0
