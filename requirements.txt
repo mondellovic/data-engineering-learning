@@ -1,8 +1,18 @@
+# Session 4, 5, 6, 7, 8, 9, 13: Spark & Delta Engine
 pyspark==3.5.0
 delta-spark==3.1.0
+
+# Session 10: Transformations with dbt
 dbt-core>=1.7.0
-dbt-duckdb>=1.7.0
-pytest>=7.4.0
-great_expectations>=0.18.0
-black>=23.0.0
-sqlfluff>=2.3.0
+dbt-duckdb>=1.7.0  # Default lightweight local target engine for dbt practice
+
+# Session 11 & Data Quality
+pyyaml>=6.0
+pytest>=8.0.0
+
+# Session 2 & Utilities: API Ingestion & Data Generation
+requests>=2.31.0
+faker>=22.0.0
+
+# Session 12: Operations & Quality Checking
+ruff>=0.2.0

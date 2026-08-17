@@ -1,0 +1,5 @@
+[
+  {"source_name": "products", "endpoint": "https://dummyjson.com/products", "target_path": "raw/products/"},
+  {"source_name": "users", "endpoint": "https://dummyjson.com/users", "target_path": "raw/customers/"},
+  {"source_name": "rates", "endpoint": "https://api.frankfurter.app/latest?from=EUR", "target_path": "raw/exchangerates/"}
+]
