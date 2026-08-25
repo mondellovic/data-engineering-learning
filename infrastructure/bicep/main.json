@@ -1,0 +1,216 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.46.1.21595",
+      "templateHash": "12788774795686493420"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "metadata": {
+        "description": "Azure regionen hvor ressourcerne skal udrulles"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "rg-nordic-retail-group-dev",
+      "metadata": {
+        "description": "Navnet på Resource Group"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2023-07-01",
+      "name": "[parameters('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "Environment": "Development",
+        "Project": "Nordic Retail Group Data Platform"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "resourcesDeployment",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.46.1.21595",
+              "templateHash": "7562569846420528575"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure regionen hvor ressourcerne oprettes"
+              }
+            },
+            "resourcePrefix": {
+              "type": "string",
+              "defaultValue": "nrg",
+              "metadata": {
+                "description": "Præfiks til ressourcenavne"
+              }
+            },
+            "uniqueSuffix": {
+              "type": "string",
+              "defaultValue": "[uniqueString(resourceGroup().id)]",
+              "metadata": {
+                "description": "Unik suffix til ressourcenavne (skal være unikt på tværs af Azure)"
+              }
+            }
+          },
+          "variables": {
+            "storageAccountName": "[format('{0}st{1}', parameters('resourcePrefix'), parameters('uniqueSuffix'))]",
+            "keyVaultName": "[format('{0}-kv-{1}', parameters('resourcePrefix'), parameters('uniqueSuffix'))]",
+            "containers": [
+              "raw",
+              "cleansed",
+              "curated"
+            ],
+            "rawFolders": [
+              "products",
+              "customers",
+              "orders",
+              "exchangerates",
+              "clickstream"
+            ]
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[take(variables('storageAccountName'), 24)]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "isHnsEnabled": true,
+                "accessTier": "Hot",
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', take(variables('storageAccountName'), 24), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', take(variables('storageAccountName'), 24))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "storageContainers",
+                "count": "[length(variables('containers'))]"
+              },
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}/{2}', take(variables('storageAccountName'), 24), 'default', variables('containers')[copyIndex()])]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', take(variables('storageAccountName'), 24), 'default')]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "rawFolderPlaceholders",
+                "count": "[length(variables('rawFolders'))]"
+              },
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers/blobs",
+              "apiVersion": "2023-01-01",
+              "name": "[format('raw/{0}/.keep', variables('rawFolders')[copyIndex()])]",
+              "properties": {
+                "contentLength": 0
+              },
+              "dependsOn": [
+                "storageContainers"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2023-07-01",
+              "name": "[take(variables('keyVaultName'), 24)]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "tenantId": "[subscription().tenantId]",
+                "enableSoftDelete": true,
+                "softDeleteRetentionInDays": 7,
+                "enableRbacAuthorization": true
+              }
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', take(variables('keyVaultName'), 24), 'storage-connection-string')]",
+              "properties": {
+                "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', take(variables('storageAccountName'), 24), listKeys(resourceId('Microsoft.Storage/storageAccounts', take(variables('storageAccountName'), 24)), '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', take(variables('keyVaultName'), 24))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', take(variables('storageAccountName'), 24))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "storageAccountName": {
+              "type": "string",
+              "value": "[take(variables('storageAccountName'), 24)]"
+            },
+            "keyVaultName": {
+              "type": "string",
+              "value": "[take(variables('keyVaultName'), 24)]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[parameters('resourceGroupName')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'resourcesDeployment'), '2025-04-01').outputs.storageAccountName.value]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'resourcesDeployment'), '2025-04-01').outputs.keyVaultName.value]"
+    }
+  }
+}

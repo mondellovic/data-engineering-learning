@@ -49,3 +49,5 @@ python src/streaming/event_generator.py
 
 # RUNNING DATA QUALITY TESTS
 pytest tests/
+
+##test
