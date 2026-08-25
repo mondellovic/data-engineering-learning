@@ -1,17 +1,31 @@
-// Session 1: ADLS Gen2 Storage Account with Hierarchical Namespace
-param location string = resourceGroup().location
-param storageAccountName string = 'stnordicretail${uniqueString(resourceGroup().id)}'
+targetScope = 'subscription'
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: storageAccountName
+@description('Azure regionen hvor ressourcerne skal udrulles')
+param location string = 'swedencentral' // Ændret fra westeurope til swedencentral
+
+@description('Navnet på Resource Group')
+param resourceGroupName string = 'rg-nordic-retail-group-dev'
+
+// 1. Opret Resource Group
+resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: resourceGroupName
   location: location
-  sku: { name: 'Standard_LRS' }
-  kind: 'StorageV2'
-  properties: {
-    isHnsEnabled: true // Required for ADLS Gen2
+  tags: {
+    Environment: 'Development'
+    Project: 'Nordic Retail Group Data Platform'
   }
 }
 
-resource rawContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: '${storageAccount.name}/default/raw'
+// 2. Deploy Ressourcer i Resource Group via modul
+module resources 'modules/resources.bicep' = {
+  name: 'resourcesDeployment'
+  scope: rg
+  params: {
+    location: location
+  }
 }
+
+// Outputs
+output resourceGroupName string = rg.name
+output storageAccountName string = resources.outputs.storageAccountName
+output keyVaultName string = resources.outputs.keyVaultName
